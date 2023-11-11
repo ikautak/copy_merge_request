@@ -40,7 +40,7 @@ fn get_merge_request(
     mr
 }
 
-fn create_merge_request(
+fn post_merge_request(
     private_token: &String,
     gitlab_url: &String,
     project_id: u32,
@@ -75,7 +75,7 @@ fn copy_merge_request(private_token: &String, config: &Config) {
     );
 
     for target in &config.target_branch {
-        let response = create_merge_request(
+        let response = post_merge_request(
             private_token,
             &config.gitlab_url,
             config.project_id,
