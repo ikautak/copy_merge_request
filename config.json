@@ -1,0 +1,6 @@
+{
+  "gitlab_url": "https://gitlab.com",
+  "project_id": 1234,
+  "source_mr_id": 123,
+  "target_branch": ["target1", "target2"]
+}
