@@ -21,11 +21,11 @@ struct Config {
 }
 
 fn get_merge_request(
-    private_token: &String,
-    gitlab_url: &String,
+    private_token: &str,
+    gitlab_url: &str,
     project_id: u32,
     source_mr_id: u32,
-) -> ureq::serde_json::Value {
+) -> Result<ureq::serde_json::Value, ureq::Error> {
     let path = format!(
         "{}/api/v4/projects/{}/merge_requests/{}",
         gitlab_url, project_id, source_mr_id
@@ -33,20 +33,19 @@ fn get_merge_request(
 
     let response = ureq::get(&path)
         .set("PRIVATE-TOKEN", &private_token)
-        .call()
-        .unwrap();
-    let mr: ureq::serde_json::Value = response.into_json().unwrap();
-    // println!("{}", mr);
-    mr
+        .call()?;
+
+    let mr: ureq::serde_json::Value = response.into_json()?;
+    Ok(mr)
 }
 
 fn post_merge_request(
-    private_token: &String,
-    gitlab_url: &String,
+    private_token: &str,
+    gitlab_url: &str,
     project_id: u32,
-    target_branch: &String,
+    target_branch: &str,
     mr: &ureq::serde_json::Value,
-) -> ureq::serde_json::Value {
+) -> Result<ureq::serde_json::Value, ureq::Error> {
     let path = format!(
         "{}/api/v4/projects/{}/merge_requests",
         gitlab_url, project_id
@@ -59,30 +58,40 @@ fn post_merge_request(
             "target_branch": target_branch,
             "title": mr["title"],
             "description": mr["description"],
-        }))
-        .unwrap();
-    let response: ureq::serde_json::Value = response.into_json().unwrap();
-    // println!("{}", response);
-    response
+        }))?;
+
+    let response: ureq::serde_json::Value = response.into_json()?;
+    Ok(response)
 }
 
-fn copy_merge_request(private_token: &String, config: &Config) {
-    let mr = get_merge_request(
+fn copy_merge_request(private_token: &str, config: &Config) {
+    let mr = match get_merge_request(
         private_token,
         &config.gitlab_url,
         config.project_id,
         config.source_mr_id,
-    );
+    ) {
+        Ok(mr) => mr,
+        Err(e) => {
+            eprintln!("Failed to get merge request: {}", e);
+            return;
+        }
+    };
 
     for target in &config.target_branch {
-        let response = post_merge_request(
+        match post_merge_request(
             private_token,
             &config.gitlab_url,
             config.project_id,
             target,
             &mr,
-        );
-        println!("create merge_request {}", response["web_url"]);
+        ) {
+            Ok(response) => println!("create mr {}", response["web_url"]),
+            Err(e) => {
+                eprintln!("Failed to post merge request: {}", e);
+                return;
+            }
+        }
     }
 }
 
@@ -90,9 +99,9 @@ fn main() {
     let args = Args::parse();
 
     let config = {
-        let file = File::open(args.config).unwrap();
+        let file = File::open(args.config).expect("Failed to open config");
         let reader = BufReader::new(file);
-        let config: Config = ureq::serde_json::from_reader(reader).unwrap();
+        let config: Config = ureq::serde_json::from_reader(reader).expect("Failed to parse config");
         config
     };
 
