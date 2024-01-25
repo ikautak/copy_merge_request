@@ -1,4 +1,4 @@
-# copy GitLab merge request, changing the target branches.
+# create a copy of the GitLab merge request with a changed target branch.
 
 1. Get access token
    https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html

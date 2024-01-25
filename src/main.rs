@@ -17,11 +17,11 @@ struct Config {
     gitlab_url: String,
     project_id: u32,
     source_mr_id: u32,
-    target_branch: Vec<String>,
+    target_branches: Vec<String>,
 }
 
 fn get_merge_request(
-    private_token: &str,
+    access_token: &str,
     gitlab_url: &str,
     project_id: u32,
     source_mr_id: u32,
@@ -32,7 +32,7 @@ fn get_merge_request(
     );
 
     let response = ureq::get(&path)
-        .set("PRIVATE-TOKEN", &private_token)
+        .set("PRIVATE-TOKEN", &access_token)
         .call()?;
 
     let mr: ureq::serde_json::Value = response.into_json()?;
@@ -40,7 +40,7 @@ fn get_merge_request(
 }
 
 fn post_merge_request(
-    private_token: &str,
+    access_token: &str,
     gitlab_url: &str,
     project_id: u32,
     target_branch: &str,
@@ -52,7 +52,7 @@ fn post_merge_request(
     );
 
     let response = ureq::post(&path)
-        .set("PRIVATE-TOKEN", &private_token)
+        .set("PRIVATE-TOKEN", &access_token)
         .send_json(ureq::json!({
             "source_branch": mr["source_branch"],
             "target_branch": target_branch,
@@ -64,9 +64,9 @@ fn post_merge_request(
     Ok(response)
 }
 
-fn copy_merge_request(private_token: &str, config: &Config) {
+fn copy_merge_request(access_token: &str, config: &Config) {
     let mr = match get_merge_request(
-        private_token,
+        access_token,
         &config.gitlab_url,
         config.project_id,
         config.source_mr_id,
@@ -78,15 +78,15 @@ fn copy_merge_request(private_token: &str, config: &Config) {
         }
     };
 
-    for target in &config.target_branch {
+    for target_branch in &config.target_branches {
         match post_merge_request(
-            private_token,
+            access_token,
             &config.gitlab_url,
             config.project_id,
-            target,
+            target_branch,
             &mr,
         ) {
-            Ok(response) => println!("create mr {}", response["web_url"]),
+            Ok(response) => println!("{} {}", target_branch, response["web_url"]),
             Err(e) => {
                 eprintln!("Failed to post merge request: {}", e);
                 return;
@@ -105,7 +105,7 @@ fn main() {
         config
     };
 
-    let private_token = dotenv::var("ACCESS_TOKEN").unwrap();
+    let access_token = dotenv::var("ACCESS_TOKEN").unwrap();
 
-    copy_merge_request(&private_token, &config);
+    copy_merge_request(&access_token, &config);
 }
